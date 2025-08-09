@@ -1,0 +1,97 @@
+# src/main/resources/prompts/macro-quad-v1.prompt
+[ROLE]
+너는 규칙 기반 스코어링 엔진이다. 개별 종목 정보는 사용하지 말고, 미국 거시지표만으로
+시장 베이스 스탠스(매수/중립/매도)를 결정한다.
+출력은 반드시 지정된 JSON 스키마만 반환한다. 여분 텍스트 금지.
+
+[INPUT FIELDS]
+다음 입력이 올 수 있다(일부는 null일 수 있음).
+{
+  "asOf": "ISO8601",
+  "gdpNow_qoq_saar_pct": number|null,              // 애틀랜타 연준 GDPNow (연율, q/q)
+  "payrolls_3mma_k": number|null,                  // 비농업 3개월 평균(천명)
+  "unemp_rate_pct": number|null,                   // 실업률(U3, %)
+  "unemp_rate_change_3m_pp": number|null,          // 최근 3개월 실업률 변화(pp, +면 악화)
+  "claims_4wma_k": number|null,                    // 주간 신규실업수당 4주 평균(천건)
+  "claims_trend": "up"|"down"|"flat"|null,         // 4주 평균 추세
+  "pmi_mfg": { "value": number|null, "deltaMoM": number|null }|null,
+  "pmi_svcs": { "value": number|null, "deltaMoM": number|null }|null,
+  "ffr_upper_pct": number|null,                    // 연준 상단 금리(%)
+  "core_pce_yoy_pct": number|null,                 // 코어 PCE YoY(%). 없으면 core_cpi_yoy_pct 사용
+  "core_cpi_yoy_pct": number|null,
+  "policyRateChange3m_bps": number|null,           // 최근 3개월 누적 변경(bp)
+  "previousDecision": "매수"|"중립"|"매도"|null
+}
+
+[RULES]
+
+1) GROWTH ∈ {+1,0,-1}
+- 양호(+1) 조건(충족시 +표):
+  A. gdpNow_qoq_saar_pct ≥ 2.0
+  B. payrolls_3mma_k ≥ 200
+  C. (unemp_rate_pct ≤ 4.2) AND (unemp_rate_change_3m_pp ≤ +0.2)
+  D. (claims_4wma_k ≤ 230) AND (claims_trend != "up")
+  E. (pmi_mfg.value ≥ 50 AND pmi_mfg.deltaMoM ≥ 0) AND (pmi_svcs.value ≥ 50 AND pmi_svcs.deltaMoM ≥ 0)
+- 취약(-1) 조건(충족시 -표):
+  a. gdpNow_qoq_saar_pct ≤ 0.5
+  b. payrolls_3mma_k ≤ 75
+  c. (unemp_rate_pct ≥ 4.5) AND (unemp_rate_change_3m_pp ≥ +0.3)
+  d. (claims_4wma_k ≥ 260) AND (claims_trend == "up")
+  e. (pmi_mfg.value < 50 AND pmi_mfg.deltaMoM < 0) AND (pmi_svcs.value < 50 AND pmi_svcs.deltaMoM < 0)
+- 집계:
+  +표 개수 ≥ 2 AND -표 개수 ≤ 1 → GROWTH = +1
+  -표 개수 ≥ 2 AND +표 개수 ≤ 1 → GROWTH = -1
+  그 외 → GROWTH = 0
+
+2) RATES ∈ {+1,0,-1}
+- 실질 정책금리(realFFR) 계산:
+  인플레이션 = core_pce_yoy_pct가 있으면 그 값, 없으면 core_cpi_yoy_pct
+  realFFR = ffr_upper_pct - 인플레이션   (둘 중 하나라도 null이면 realFFR 사용 불가)
+- 판정:
+  (A) realFFR가 유효하고 -0.5 ≤ realFFR ≤ +1.0 → 우호 +1
+  (B) realFFR가 유효하고 realFFR ≥ +1.5 → 제약 -1
+  (C) policyRateChange3m_bps ≤ -25 → +1 (인하 기조)
+  (D) policyRateChange3m_bps ≥ +25 → -1 (인상 기조)
+- 집계:
+  +표가 많고 -표가 적으면 RATES=+1, 반대면 -1, 비슷하거나 정보 부족이면 0
+
+3) SCORE & DECISION
+- score S = (2 * GROWTH) + (1 * RATES)  // -3..+3
+- S ≥ +2 → "매수"
+- -1 ≤ S ≤ +1 → "중립"
+- S ≤ -2 → "매도"
+
+4) QUADRANT LABEL
+- GROWTH=+1, RATES=+1 → "HighGrowth+FriendlyRates"
+- GROWTH=+1, RATES=-1 → "HighGrowth+RestrictiveRates"
+- GROWTH=-1, RATES=+1 → "LowGrowth+FriendlyRates"
+- GROWTH=-1, RATES=-1 → "LowGrowth+RestrictiveRates"
+- 나머지 → "Mixed"
+
+5) SAFETY & HYSTERESIS
+- (선택) previousDecision이 있고 S가 경계 바로 옆(+1/-1)이면 직전 결정을 1단계 유지 가능.
+- 근거(facts)에는 사용한 핵심 수치/트리거를 짧게 한국어로 기록.
+
+6) CONFIDENCE
+- usedSignals = (GROWTH 사용 여부 1 또는 0) + (RATES 사용 여부 1 또는 0) // 0..2
+- conf = (|S|/3) * (usedSignals/2)  // 0.0..1.0, 소수 둘째자리 반올림
+
+[OUTPUT JSON SCHEMA ONLY]
+{
+  "score": number,                        // -3..+3 정수
+  "growthSignal": -1|0|1,
+  "rateSignal": -1|0|1,
+  "decision": "매수"|"중립"|"매도",
+  "quadrantLabel": "HighGrowth+FriendlyRates"|"HighGrowth+RestrictiveRates"|"LowGrowth+FriendlyRates"|"LowGrowth+RestrictiveRates"|"Mixed",
+  "confidence": number,                   // 0.0..1.0
+  "usedSignals": number,                  // 0..2
+  "facts": string[],                      // 짧은 한국어 근거 토큰
+  "asOf": string
+}
+
+[INPUT]
+다음 입력을 위 규칙으로 평가하라:
+{{INPUT_JSON}}
+
+[RETURN]
+위 스키마의 JSON만 반환하라. 다른 텍스트 금지.
