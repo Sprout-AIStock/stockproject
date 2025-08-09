@@ -29,9 +29,25 @@ public class MacroQuadBannerService {
                 rateValueText(input),
                 rateDesc(quad.rateSignal())
         );
+        String stance = quad.decision();
+        String icon = switch (stance) {
+            case "매수" -> "bull";
+            case "매도" -> "bear";
+            default -> "neutral";
+        };
+        String headline = switch (quad.quadrantLabel()) {
+            case "HighGrowth+FriendlyRates" -> "성장 우세·금리 우호";
+            case "HighGrowth+RestrictiveRates" -> "성장 우세·금리 제약";
+            case "LowGrowth+FriendlyRates" -> "성장 둔화·금리 우호";
+            case "LowGrowth+RestrictiveRates" -> "성장 둔화·금리 제약";
+            default -> "혼조";
+        };
+        String subtext = growthValueText(input) + " | " + rateValueText(input);
+        String color = tone(quad.score());
+
         return new MacroQuadBannerResponse(
                 quad.decision(), quad.quadrantLabel(), quad.score(), quad.confidence(), quad.asOf(),
-                List.of(growthItem, rateItem)
+                List.of(growthItem, rateItem), stance, headline, subtext, color, icon
         );
     }
 
