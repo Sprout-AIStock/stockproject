@@ -29,8 +29,13 @@ public class MacroQuadBannerService {
                 rateValueText(input),
                 rateDesc(quad.rateSignal())
         );
-        String stance = quad.decision();
-        String icon = switch (stance) {
+        String decisionKo = quad.decision();
+        String stance = switch (decisionKo) {
+            case "매수" -> "buy";
+            case "매도" -> "sell";
+            default -> "neutral";
+        };
+        String icon = switch (decisionKo) {
             case "매수" -> "bull";
             case "매도" -> "bear";
             default -> "neutral";
