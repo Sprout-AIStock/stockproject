@@ -1,5 +1,6 @@
 package com.sprout.stockproject.controller;
 
+import com.sprout.stockproject.api.ApiResponse;
 import com.sprout.stockproject.service.NewsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,21 +19,21 @@ public class NewsController {
     }
 
     @GetMapping("/theme/{themeName}")
-    public ResponseEntity<List<Map<String, Object>>> getNewsByTheme(
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getNewsByTheme(
             @PathVariable String themeName,
             @RequestParam(required = false, defaultValue = "10") int display,
             @RequestParam(required = false, defaultValue = "1") int start
     ) {
         List<Map<String, Object>> newsList = newsService.searchNews(themeName, display, start);
-        return ResponseEntity.ok(newsList); // 빈 배열도 200으로 반환
+        return ResponseEntity.ok(ApiResponse.ok(newsList)); // 빈 배열도 200으로 반환
     }
 
     @GetMapping("/macro")
-    public ResponseEntity<List<Map<String, Object>>> getMacroNews(
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMacroNews(
             @RequestParam(required = false, defaultValue = "10") int display,
             @RequestParam(required = false, defaultValue = "1") int start
     ) {
         List<Map<String, Object>> newsList = newsService.searchNews("거시경제", display, start);
-        return ResponseEntity.ok(newsList); // 빈 배열도 200으로 반환
+        return ResponseEntity.ok(ApiResponse.ok(newsList)); // 빈 배열도 200으로 반환
     }
 }

@@ -8,6 +8,7 @@ import com.sprout.stockproject.dto.MacroQuadResponse;
 import com.sprout.stockproject.prompt.PromptStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -31,9 +32,9 @@ public class MacroQuadLlmService {
     @Value("${openai.api.key:}")
     private String openaiKey;
 
-    public MacroQuadLlmService(PromptStore prompts, ObjectMapper om, WebClient.Builder wb) {
+    public MacroQuadLlmService(PromptStore prompts, ObjectMapper om, @Qualifier("openaiWebClient") WebClient openaiWebClient) {
         this.prompts = prompts; this.om = om;
-        this.webClient = wb.baseUrl(openaiBase).build();
+        this.webClient = openaiWebClient;
     }
 
     public MacroQuadResponse infer(MacroQuadInput input) {
@@ -70,6 +71,17 @@ public class MacroQuadLlmService {
             return parsed;
         } catch (Exception e) {
             throw new RuntimeException("Macro quad inference failed", e);
+        }
+    }
+
+    /** Safe inference: returns neutral fallback on any error. */
+    public MacroQuadResponse inferSafe(MacroQuadInput input) {
+        try {
+            return infer(input);
+        } catch (Exception e) {
+            MacroQuadInput effective = ensureAsOf(input);
+            return new MacroQuadResponse(0, 0, 0, "중립", "Mixed", 0.1, 0,
+                    java.util.List.of("LLM 오류 폴백"), effective.asOf());
         }
     }
 

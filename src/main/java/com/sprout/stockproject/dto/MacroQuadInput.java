@@ -22,6 +22,6 @@ public record MacroQuadInput(
     public record Pmi(Double value, Double deltaMoM) {}
     public static MacroQuadInput nowWithNulls() {
         return new MacroQuadInput(OffsetDateTime.now().toString(),
-                null,null,null,null,null,null,null,null,null,null,null,null);
+                null,null,null,null,null,null,null,null,null,null,null,null,null);
     }
 }
