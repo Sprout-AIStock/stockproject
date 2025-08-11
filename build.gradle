@@ -7,11 +7,12 @@ plugins {
 group = 'com.sprout'
 version = '0.0.1-SNAPSHOT'
 
+def targetJava = (findProperty('javaVersion') ?: System.getenv('JAVA_TOOL_VERSION') ?: '17') as int
+
 java {
-	toolchain {
-		//languageVersion = JavaLanguageVersion.of(17)
-		languageVersion = JavaLanguageVersion.of(22) //김동진 => 로컬용 자바 버전
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(targetJava)
+    }
 }
 
 configurations {
