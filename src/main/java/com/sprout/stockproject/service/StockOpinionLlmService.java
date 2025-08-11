@@ -25,7 +25,7 @@ public class StockOpinionLlmService {
     @Value("${prompt.stock.opinion.version:stock-opinion-v1}")
     private String promptName;
 
-    @Value("${openai.model:gpt-4.1-mini}")
+    @Value("${openai.model:gpt-5}")
     private String model;
 
     public StockOpinionLlmService(PromptStore prompts,

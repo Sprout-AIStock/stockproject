@@ -22,7 +22,7 @@ public class ReportChatLlmService {
 
     @Value("${prompt.report.qa.version:report-qa-v1}")
     private String promptName;
-    @Value("${openai.model:gpt-4.1-mini}")
+    @Value("${openai.model:gpt-5}")
     private String model;
 
     public ReportChatLlmService(PromptStore prompts, ObjectMapper om, @Qualifier("openaiWebClient") WebClient wc) {

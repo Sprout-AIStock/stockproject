@@ -24,7 +24,7 @@ public class ReportService {
     @Value("${prompt.macro.report.version:macro-report-daily-v1}")
     private String promptName;
 
-    @Value("${openai.model:gpt-4.1-mini}")
+    @Value("${openai.model:gpt-5}")
     private String model;
 
     public ReportService(PromptStore prompts,
