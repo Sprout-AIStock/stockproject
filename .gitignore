@@ -37,3 +37,4 @@ out/
 .vscode/
 
 application-local.properties
+API_SPEC.md

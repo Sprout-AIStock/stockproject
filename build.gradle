@@ -9,7 +9,8 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		//languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(22) //김동진 => 로컬용 자바 버전
 	}
 }
 
@@ -33,7 +34,8 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 
 	runtimeOnly 'org.postgresql:postgresql'
-
+	runtimeOnly 'com.h2database:h2' //김동진 => 로컬용 db
+	
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
