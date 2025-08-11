@@ -1,4 +1,5 @@
 package com.sprout.stockproject.external;// src/main/java/com/sprout/stockproject/external/naver/NaverMobileStockClient.java
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
