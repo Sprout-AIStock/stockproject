@@ -1,6 +1,7 @@
 // src/main/java/com/sprout/stockproject/controller/MacroQuadController.java
 package com.sprout.stockproject.controller;
 
+import com.sprout.stockproject.api.ApiResponse;
 import com.sprout.stockproject.dto.MacroQuadBannerResponse;
 import com.sprout.stockproject.dto.MacroQuadInput;
 import com.sprout.stockproject.dto.MacroQuadResponse;
@@ -22,14 +23,14 @@ public class MacroQuadController {
 
     /** 4분면 스탠스(매수/중립/매도) */
     @PostMapping("/stance")
-    public ResponseEntity<MacroQuadResponse> stance(@RequestBody MacroQuadInput input){
-        return ResponseEntity.ok(llm.infer(input));
+    public ResponseEntity<ApiResponse<MacroQuadResponse>> stance(@RequestBody MacroQuadInput input){
+        return ResponseEntity.ok(ApiResponse.ok(llm.inferSafe(input)));
     }
 
     /** 프론트 배너 요약(성장/금리 2개 아이템) */
     @PostMapping("/banner")
-    public ResponseEntity<MacroQuadBannerResponse> banner(@RequestBody MacroQuadInput input){
-        var r = llm.infer(input);
-        return ResponseEntity.ok(banner.build(input, r));
+    public ResponseEntity<ApiResponse<MacroQuadBannerResponse>> banner(@RequestBody MacroQuadInput input){
+        var r = llm.inferSafe(input);
+        return ResponseEntity.ok(ApiResponse.ok(banner.build(input, r)));
     }
 }

@@ -19,6 +19,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("EXTERNAL_API_ERROR", e.getMessage()));
     }
 
+    @ExceptionHandler(UnprocessableException.class)
+    public ResponseEntity<ApiResponse<Void>> handle422(UnprocessableException e) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error("UNPROCESSABLE", e.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleAny(Exception e) {
         log.error("Unhandled exception", e);
