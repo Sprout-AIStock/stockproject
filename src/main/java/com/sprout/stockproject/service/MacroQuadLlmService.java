@@ -25,7 +25,7 @@ public class MacroQuadLlmService {
 
     @Value("${prompt.macro.quad.version:macro-quad-v1}")
     private String promptName;
-    @Value("${openai.model:gpt-4.1-mini}")
+    @Value("${openai.model:gpt-5}")
     private String model;
     @Value("${openai.api.base:https://api.openai.com/v1}")
     private String openaiBase;
