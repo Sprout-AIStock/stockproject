@@ -22,6 +22,12 @@ public class StockInfoController {
         this.stockInfoFromKrx = stockInfoFromKrx;
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<List<StockInfo>> getAllStocks() {
+        List<StockInfo> stocks = stockService.getAllStocks();
+        return ResponseEntity.ok(stocks);
+    }
+
     @PostMapping("/upload")
     public ResponseEntity<String> uploadCsv(@RequestParam("file") MultipartFile file) {
         try {
