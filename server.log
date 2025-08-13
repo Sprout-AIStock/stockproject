@@ -1,0 +1,58 @@
+> Task :compileJava
+> Task :processResources UP-TO-DATE
+> Task :classes
+> Task :resolveMainClassName
+
+> Task :bootRun
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.5.4)
+
+2025-08-14T01:56:25.262+09:00  INFO 74878 --- [stockproject] [           main] c.s.s.StockprojectApplication            : Starting StockprojectApplication using Java 17.0.13 with PID 74878 (/Users/qkrwnsmir/Desktop/stockproject/build/classes/java/main started by qkrwnsmir in /Users/qkrwnsmir/Desktop/stockproject)
+2025-08-14T01:56:25.263+09:00  INFO 74878 --- [stockproject] [           main] c.s.s.StockprojectApplication            : The following 1 profile is active: "local"
+2025-08-14T01:56:25.511+09:00  INFO 74878 --- [stockproject] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-08-14T01:56:25.565+09:00  INFO 74878 --- [stockproject] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 49 ms. Found 1 JPA repository interface.
+2025-08-14T01:56:25.750+09:00  INFO 74878 --- [stockproject] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2025-08-14T01:56:25.755+09:00  INFO 74878 --- [stockproject] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-08-14T01:56:25.756+09:00  INFO 74878 --- [stockproject] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.43]
+2025-08-14T01:56:25.779+09:00  INFO 74878 --- [stockproject] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-08-14T01:56:25.779+09:00  INFO 74878 --- [stockproject] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 503 ms
+2025-08-14T01:56:25.842+09:00  INFO 74878 --- [stockproject] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-08-14T01:56:25.861+09:00  INFO 74878 --- [stockproject] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.22.Final
+2025-08-14T01:56:25.872+09:00  INFO 74878 --- [stockproject] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2025-08-14T01:56:25.971+09:00  INFO 74878 --- [stockproject] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-08-14T01:56:25.980+09:00  INFO 74878 --- [stockproject] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-08-14T01:56:26.041+09:00  INFO 74878 --- [stockproject] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:987cac84-b55c-4193-8e41-06689e868909 user=SA
+2025-08-14T01:56:26.042+09:00  INFO 74878 --- [stockproject] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-08-14T01:56:26.063+09:00  INFO 74878 --- [stockproject] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 2.3.232
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2025-08-14T01:56:26.332+09:00  INFO 74878 --- [stockproject] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-08-14T01:56:26.353+09:00  INFO 74878 --- [stockproject] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-08-14T01:56:26.556+09:00  INFO 74878 --- [stockproject] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-08-14T01:56:26.705+09:00  WARN 74878 --- [stockproject] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-08-14T01:56:26.825+09:00  INFO 74878 --- [stockproject] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2025-08-14T01:56:26.830+09:00  INFO 74878 --- [stockproject] [           main] c.s.s.StockprojectApplication            : Started StockprojectApplication in 1.716 seconds (process running for 1.828)
+=================================
+자동으로 KRX 데이터 다운로드를 시작합니다...
+=================================
+KRX 데이터 다운로드 성공!
+응답 데이터 크기: 890560 문자
+데이터 처리 완료: 2878개 저장, 0개 중복
+자동 다운로드 결과: KRX 데이터 다운로드 및 저장 성공 - 데이터 크기: 890560 문자, 저장된 종목 수: 2878개
+2025-08-14T01:56:44.672+09:00  INFO 74878 --- [stockproject] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-08-14T01:56:44.674+09:00  INFO 74878 --- [stockproject] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2025-08-14T01:56:44.681+09:00  INFO 74878 --- [stockproject] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 7 ms
+[WebClient][NAVER] GET https://openapi.naver.com/v1/search/news.json?query=%EA%B1%B0%EC%8B%9C%EA%B2%BD%EC%A0%9C&display=10&start=1&sort=date
+2025-08-14T01:56:46.696+09:00 ERROR 74878 --- [stockproject] [nio-8080-exec-2] i.n.r.d.DnsServerAddressStreamProviders  : Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library

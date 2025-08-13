@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -48,21 +49,25 @@ public class MacroQuadLlmService {
             Map<String,Object> schema = responseSchema();
             Map<String,Object> req = new HashMap<>();
             req.put("model", model);
-            req.put("input", prompt);
+            req.put("messages", java.util.List.of(
+                Map.of("role", "user", "content", prompt)
+            ));
             req.put("temperature", 0);
-            req.put("max_output_tokens", 400);
+            req.put("max_tokens", 400);
             Map<String,Object> respFmt = new HashMap<>();
             respFmt.put("type", "json_schema");
             respFmt.put("json_schema", Map.of("name","macro_quad","schema", schema));
             req.put("response_format", respFmt);
 
             String raw = webClient.post()
-                    .uri("/responses")
+                    .uri("/chat/completions")
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer " + (openaiKey!=null && !openaiKey.isBlank()? openaiKey : System.getenv("OPENAI_API_KEY")))
                     .bodyValue(om.writeValueAsString(req))
-                    .retrieve()
-                    .bodyToMono(String.class)
+                    .exchangeToMono(res -> res.bodyToMono(String.class)
+                            .flatMap(body -> res.statusCode().isError()
+                                    ? Mono.error(new RuntimeException("OpenAI error " + res.statusCode() + ": " + body))
+                                    : Mono.just(body)))
                     .block();
 
             String json = extractOutputJson(raw);
@@ -107,15 +112,14 @@ public class MacroQuadLlmService {
 
     private String extractOutputJson(String raw) throws Exception {
         JsonNode root = om.readTree(raw);
-        JsonNode ot = root.get("output_text");
-        if (ot != null && ot.isTextual()) return ot.asText();
-        JsonNode output = root.get("output");
-        if (output != null && output.isArray() && output.size() > 0) {
-            JsonNode first = output.get(0);
-            JsonNode content = first.get("content");
-            if (content != null && content.isArray() && content.size() > 0) {
-                JsonNode maybeText = content.get(0).get("text");
-                if (maybeText != null && maybeText.isTextual()) return maybeText.asText();
+        // Standard chat/completions format
+        JsonNode choices = root.get("choices");
+        if (choices != null && choices.isArray() && choices.size() > 0) {
+            JsonNode choice = choices.get(0);
+            JsonNode message = choice.get("message");
+            if (message != null) {
+                JsonNode content = message.get("content");
+                if (content != null && content.isTextual()) return content.asText();
             }
         }
         return raw; // 모델이 바로 JSON을 내는 경우

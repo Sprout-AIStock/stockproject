@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.List;
@@ -40,14 +41,14 @@ public class StockOpinionLlmService {
         try {
             Map<String, Object> input = new HashMap<>();
             input.put("macro", macro);
-            input.put("stock", Map.of(
-                    "code", stock.getCode(),
-                    "name", stock.getName(),
-                    "price", stock.getPrice(),
-                    "marketCap", stock.getMarketCap(),
-                    "per", stock.getPer(),
-                    "pbr", stock.getPbr()
-            ));
+            Map<String, Object> stockMap = new HashMap<>();
+            if (stock.getCode() != null) stockMap.put("code", stock.getCode());
+            if (stock.getName() != null) stockMap.put("name", stock.getName());
+            if (stock.getPrice() != null) stockMap.put("price", stock.getPrice());
+            if (stock.getMarketCap() != null) stockMap.put("marketCap", stock.getMarketCap());
+            if (stock.getPer() != null) stockMap.put("per", stock.getPer());
+            if (stock.getPbr() != null) stockMap.put("pbr", stock.getPbr());
+            input.put("stock", stockMap);
             input.put("horizon", horizon);
             input.put("risk", risk);
 
@@ -60,6 +61,9 @@ public class StockOpinionLlmService {
             req.put("input", prompt);
             req.put("temperature", 0);
             req.put("max_output_tokens", 400);
+            // GPT-5 베스트 프랙티스: 최소 추론 + 간결한 출력
+            req.put("reasoning", Map.of("effort", "minimal"));
+            req.put("text", Map.of("verbosity", "low"));
             Map<String, Object> respFmt = new HashMap<>();
             respFmt.put("type", "json_schema");
             respFmt.put("json_schema", Map.of("name", "stock_opinion", "schema", responseSchema()));
@@ -69,8 +73,10 @@ public class StockOpinionLlmService {
                     .uri("/responses")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(objectMapper.writeValueAsString(req))
-                    .retrieve()
-                    .bodyToMono(String.class)
+                    .exchangeToMono(res -> res.bodyToMono(String.class)
+                            .flatMap(body -> res.statusCode().isError()
+                                    ? Mono.error(new RuntimeException("OpenAI error " + res.statusCode() + ": " + body))
+                                    : Mono.just(body)))
                     .block();
 
             String json = extractOutputJson(raw);
@@ -81,7 +87,7 @@ public class StockOpinionLlmService {
             String asOf = node.path("asOf").asText(macro.asOf());
             return new OpinionResult(stance, confidence, reasons, asOf);
         } catch (Exception e) {
-            throw new RuntimeException("Stock opinion inference failed", e);
+            throw new RuntimeException("Stock opinion inference failed: " + e.getMessage(), e);
         }
     }
 

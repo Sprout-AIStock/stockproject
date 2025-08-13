@@ -22,11 +22,11 @@ public class WebClientConfig {
     @Bean
     public WebClient.Builder webClientBuilder() {
         HttpClient http = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
-                .responseTimeout(Duration.ofSeconds(10))
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)
+                .responseTimeout(Duration.ofSeconds(30))
                 .doOnConnected(conn -> conn
-                        .addHandlerLast(new ReadTimeoutHandler(10))
-                        .addHandlerLast(new WriteTimeoutHandler(10)));
+                        .addHandlerLast(new ReadTimeoutHandler(30))
+                        .addHandlerLast(new WriteTimeoutHandler(30)));
 
         return WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(http))
@@ -65,6 +65,7 @@ public class WebClientConfig {
         return b
                 .baseUrl(openaiBase)
                 .defaultHeader("Authorization", "Bearer " + (key == null ? "" : key))
+                .defaultHeader("OpenAI-Beta", "responses=v1")
                 .build();
     }
 }

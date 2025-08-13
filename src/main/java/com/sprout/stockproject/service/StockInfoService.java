@@ -4,36 +4,59 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.sprout.stockproject.api.UnprocessableException;
 import com.sprout.stockproject.dto.StockDetailDto;
 import com.sprout.stockproject.external.NaverMobileStockClient;
+import com.sprout.stockproject.external.NaverChartStockClient;
 import org.springframework.stereotype.Service;
 
 @Service
 public class StockInfoService {
 
     private final NaverMobileStockClient naverMobile;
+    private final NaverChartStockClient chartClient;
 
-    public StockInfoService(NaverMobileStockClient naverMobile) {
+    public StockInfoService(NaverMobileStockClient naverMobile, NaverChartStockClient chartClient) {
         this.naverMobile = naverMobile;
+        this.chartClient = chartClient;
     }
 
     public StockDetailDto fetch(String code) {
-        JsonNode root = naverMobile.fetchIntegration(code);
-        if (root == null || root.isEmpty()) {
-            throw new UnprocessableException("종목 데이터를 찾을 수 없습니다: code=" + code);
+        // 차트 API에서 이름/최근 종가만 사용하여 최소 정보 구성
+        JsonNode chart = chartClient.fetchDailyChart(code, 1);
+        String name = chart.path("name").asText(null);
+        String price = null;
+        JsonNode data = chart.path("data");
+        if (data != null && data.isArray() && data.size() > 0) {
+            JsonNode last = data.get(data.size() - 1);
+            price = last.path("close").asText(null);
         }
-        String name = text(root, "stockNameKr");
-        String price = text(root, "now");
-        String marketCap = text(root, "marketCap");
-        String per = text(root, "per");
-        String pbr = text(root, "pbr");
-        if (name == null || name.isBlank()) {
-            throw new UnprocessableException("종목 코드가 유효하지 않습니다: code=" + code);
+        if (name == null) {
+            throw new UnprocessableException("종목 기본 정보를 가져오지 못했습니다(잠시 후 재시도): code=" + code);
         }
-        return new StockDetailDto(code, name, price, marketCap, per, pbr);
+        return new StockDetailDto(code, name, price, null, null, null);
     }
 
     private String text(JsonNode root, String field) {
         JsonNode n = root.path(field);
         return n.isMissingNode() ? null : n.asText(null);
+    }
+
+    private String fromTotalInfos(JsonNode root, String code) {
+        JsonNode arr = root.path("totalInfos");
+        if (arr != null && arr.isArray()) {
+            for (JsonNode it : arr) {
+                if (code.equals(it.path("code").asText())) {
+                    return it.path("value").asText(null);
+                }
+            }
+        }
+        return null;
+    }
+
+    private String fromDealTrendClose(JsonNode root) {
+        JsonNode deal = root.path("dealTrendInfos");
+        if (deal != null && deal.isArray() && deal.size() > 0) {
+            return deal.get(0).path("closePrice").asText(null);
+        }
+        return null;
     }
 }
 

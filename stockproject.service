@@ -1,0 +1,16 @@
+[Unit]
+Description=Stock Project Spring Boot Application
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/stockproject
+ExecStart=/usr/bin/java -jar app.jar
+Restart=always
+RestartSec=10
+Environment="JAVA_OPTS=-Xmx512m -Xms256m"
+Environment="SPRING_PROFILES_ACTIVE=rds"
+
+[Install]
+WantedBy=multi-user.target

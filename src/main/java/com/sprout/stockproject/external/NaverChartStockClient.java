@@ -18,10 +18,12 @@ import java.io.ByteArrayInputStream;
 public class NaverChartStockClient {
 
     private final WebClient wc;
+    private final WebClient wcJson;
     private final ObjectMapper om;
 
     public NaverChartStockClient(WebClient.Builder builder, ObjectMapper om) {
         this.wc = builder.baseUrl("https://fchart.stock.naver.com").build();
+        this.wcJson = builder.clone().baseUrl("https://api.finance.naver.com").build();
         this.om = om;
     }
 
@@ -50,11 +52,30 @@ public class NaverChartStockClient {
                             .queryParam("count", count)
                             .queryParam("requestType", "0")
                             .build())
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+                    .header("Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7")
+                    .header("Referer", "https://m.stock.naver.com")
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
-            return parseXmlToJson(xml);
+            try {
+                return parseXmlToJson(xml);
+            } catch (Exception ignore) {
+                // Fallback to JSON endpoint
+                String json = wcJson.get()
+                        .uri(u -> u.path("/siseJson.naver")
+                                .queryParam("symbol", stockCode)
+                                .queryParam("requestType", "1")
+                                .queryParam("count", count)
+                                .queryParam("timeframe", timeframe)
+                                .build())
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+                        .header("Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7")
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block();
+                return parseFallbackJson(json, stockCode, timeframe);
+            }
         } catch (Exception e) {
             throw new RuntimeException("NaverChartStockClient.fetchChartData failed: " + e.getMessage(), e);
         }
@@ -63,9 +84,10 @@ public class NaverChartStockClient {
     /** XML을 JSON으로 변환 */
     private JsonNode parseXmlToJson(String xml) {
         try {
+            String cleaned = sanitizeXml(xml);
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
-            Document doc = builder.parse(new ByteArrayInputStream(xml.getBytes("EUC-KR")));
+            Document doc = builder.parse(new ByteArrayInputStream(cleaned.getBytes("EUC-KR")));
 
             Element chartData = (Element) doc.getElementsByTagName("chartdata").item(0);
             String symbol = chartData.getAttribute("symbol");
@@ -103,5 +125,42 @@ public class NaverChartStockClient {
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse XML: " + e.getMessage(), e);
         }
+    }
+
+    private String sanitizeXml(String raw) {
+        if (raw == null) return "";
+        String s = raw.replace("\uFEFF", ""); // BOM 제거
+        int idx = s.indexOf('<');
+        if (idx > 0) {
+            s = s.substring(idx);
+        }
+        return s.trim();
+    }
+
+    private JsonNode parseFallbackJson(String json, String stockCode, String timeframe) throws Exception {
+        if (json == null || json.isBlank()) throw new IllegalArgumentException("Empty JSON");
+        JsonNode root = om.readTree(json);
+        if (!root.isArray() || root.size() < 2) throw new IllegalArgumentException("Unexpected JSON chart format");
+        // root[0] is header row ["날짜","시가","고가","저가","종가","거래량"]
+        ArrayNode dataArray = om.createArrayNode();
+        for (int i = 1; i < root.size(); i++) {
+            JsonNode row = root.get(i);
+            if (row.isArray() && row.size() >= 6) {
+                ObjectNode n = om.createObjectNode();
+                n.put("date", row.get(0).asText());
+                n.put("open", row.get(1).asText());
+                n.put("high", row.get(2).asText());
+                n.put("low", row.get(3).asText());
+                n.put("close", row.get(4).asText());
+                n.put("volume", row.get(5).asText());
+                dataArray.add(n);
+            }
+        }
+        ObjectNode result = om.createObjectNode();
+        result.put("symbol", stockCode);
+        result.put("name", stockCode);
+        result.put("timeframe", timeframe);
+        result.set("data", dataArray);
+        return result;
     }
 }

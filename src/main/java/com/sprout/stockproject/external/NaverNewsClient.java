@@ -10,6 +10,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.*;
 
 @Component
@@ -18,10 +24,10 @@ public class NaverNewsClient {
     private final WebClient wc;
     private final ObjectMapper om;
 
-    @Value("${api.naver.search.id}")
+    @Value("${api.naver.search.id:}")
     private String clientId;
 
-    @Value("${api.naver.search.secret}")
+    @Value("${api.naver.search.secret:}")
     private String clientSecret;
 
     public NaverNewsClient(WebClient.Builder base, ObjectMapper om) {
@@ -46,28 +52,56 @@ public class NaverNewsClient {
         final int disp = Math.min(Math.max(display, 1), 100);
         final int st   = Math.max(start, 1);
 
-        // 키 확인
-        if (isBlank(clientId) || isBlank(clientSecret)) {
+        // 키 확인 (환경변수 폴백 허용)
+        String effectiveId = isBlank(clientId) ? System.getenv("API_NAVER_SEARCH_ID") : clientId;
+        String effectiveSecret = isBlank(clientSecret) ? System.getenv("API_NAVER_SEARCH_SECRET") : clientSecret;
+        if (isBlank(effectiveId) || isBlank(effectiveSecret)) {
             throw new IllegalStateException("Naver API key missing: set 'api.naver.search.id' and 'api.naver.search.secret'");
         }
 
         try {
-            String raw = wc.get()
-                    .uri(u -> u.path("/v1/search/news.json")
-                            .queryParam("query", query)
-                            .queryParam("display", String.valueOf(disp)) // 모호성 제거
-                            .queryParam("start",   String.valueOf(st))   // 모호성 제거
-                            .queryParam("sort", "date")
-                            .build())
-                    .accept(MediaType.APPLICATION_JSON)
-                    .header("X-Naver-Client-Id", clientId)
-                    .header("X-Naver-Client-Secret", clientSecret)
-                    .retrieve()
-                    .onStatus(HttpStatusCode::isError, res ->
-                            res.bodyToMono(String.class).flatMap(msg ->
-                                    reactor.core.publisher.Mono.error(new RuntimeException("Naver API error: " + msg))))
-                    .bodyToMono(String.class)
-                    .block();
+            String raw = null;
+            try {
+                raw = wc.get()
+                        .uri(u -> u.path("/v1/search/news.json")
+                                .queryParam("query", query)
+                                .queryParam("display", String.valueOf(disp))
+                                .queryParam("start",   String.valueOf(st))
+                                .queryParam("sort", "date")
+                                .build())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("User-Agent", "Mozilla/5.0 (compatible; stockproject/1.0)")
+                        .header("X-Naver-Client-Id", effectiveId)
+                        .header("X-Naver-Client-Secret", effectiveSecret)
+                        .retrieve()
+                        .onStatus(HttpStatusCode::isError, res ->
+                                res.bodyToMono(String.class).flatMap(msg ->
+                                        reactor.core.publisher.Mono.error(new RuntimeException("Naver API error: " + msg))))
+                        .bodyToMono(String.class)
+                        .block();
+            } catch (Exception primary) {
+                // Fallback: JDK HttpClient (HTTP/1.1), 명시적 URL 인코딩
+                String encoded = URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
+                URI uri = URI.create("https://openapi.naver.com/v1/search/news.json?query=" + encoded +
+                        "&display=" + disp + "&start=" + st + "&sort=date");
+                HttpClient client = HttpClient.newBuilder()
+                        .version(HttpClient.Version.HTTP_1_1)
+                        .connectTimeout(Duration.ofSeconds(10))
+                        .build();
+                HttpRequest request = HttpRequest.newBuilder(uri)
+                        .timeout(Duration.ofSeconds(30))
+                        .header("Accept", "application/json")
+                        .header("User-Agent", "Mozilla/5.0 (compatible; stockproject/1.0)")
+                        .header("X-Naver-Client-Id", effectiveId)
+                        .header("X-Naver-Client-Secret", effectiveSecret)
+                        .GET()
+                        .build();
+                HttpResponse<String> resp = client.send(request, HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() >= 400) {
+                    throw new RuntimeException("Naver API error (fallback): status=" + resp.statusCode() + ", body=" + resp.body());
+                }
+                raw = resp.body();
+            }
 
             if (raw == null || raw.isBlank()) return Collections.emptyList();
 

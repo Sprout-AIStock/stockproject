@@ -1,7 +1,6 @@
 package com.sprout.stockproject.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.sprout.stockproject.external.NaverMobileStockClient;
 import com.sprout.stockproject.external.NaverChartStockClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,27 +13,28 @@ import java.util.Map;
 @RequestMapping("/api/stock")
 public class StockController {
 
-    private final NaverMobileStockClient naverClient;
     private final NaverChartStockClient chartClient;
 
     @Autowired
-    public StockController(NaverMobileStockClient naverClient, NaverChartStockClient chartClient) {
-        this.naverClient = naverClient;
+    public StockController(NaverChartStockClient chartClient) {
         this.chartClient = chartClient;
     }
 
-    /** 종목 전체 정보 조회 */
+    /** 종목 전체 정보 조회 (차트 기반 최소 정보 제공) */
     @GetMapping("/{stockCode}")
     public ResponseEntity<Map<String, Object>> getStockInfo(@PathVariable String stockCode) {
         try {
+            JsonNode chart = chartClient.fetchDailyChart(stockCode, 1);
             Map<String, Object> result = new HashMap<>();
             result.put("stockCode", stockCode);
-            result.put("stockName", naverClient.getStockName(stockCode));
-            result.put("currentPrice", naverClient.getCurrentPrice(stockCode));
-            result.put("marketValue", naverClient.getMarketValue(stockCode));
-            result.put("per", naverClient.getPER(stockCode));
-            result.put("pbr", naverClient.getPBR(stockCode));
-
+            result.put("stockName", chart.path("name").asText(""));
+            String price = null;
+            JsonNode data = chart.path("data");
+            if (data != null && data.isArray() && data.size() > 0) {
+                JsonNode last = data.get(data.size()-1);
+                price = last.path("close").asText(null);
+            }
+            result.put("currentPrice", price);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             Map<String, Object> error = new HashMap<>();
@@ -43,12 +43,13 @@ public class StockController {
         }
     }
 
-    /** 종목명만 조회 */
+    /** 종목명만 조회 (차트에서 이름 사용) */
     @GetMapping("/{stockCode}/name")
     public ResponseEntity<Map<String, String>> getStockName(@PathVariable String stockCode) {
         try {
+            JsonNode chart = chartClient.fetchDailyChart(stockCode, 1);
             Map<String, String> result = new HashMap<>();
-            result.put("stockName", naverClient.getStockName(stockCode));
+            result.put("stockName", chart.path("name").asText(""));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -57,12 +58,19 @@ public class StockController {
         }
     }
 
-    /** 현재가만 조회 */
+    /** 현재가만 조회 (차트 마지막 종가 사용) */
     @GetMapping("/{stockCode}/price")
     public ResponseEntity<Map<String, String>> getCurrentPrice(@PathVariable String stockCode) {
         try {
+            JsonNode chart = chartClient.fetchDailyChart(stockCode, 1);
+            String price = null;
+            JsonNode data = chart.path("data");
+            if (data != null && data.isArray() && data.size() > 0) {
+                JsonNode last = data.get(data.size()-1);
+                price = last.path("close").asText(null);
+            }
             Map<String, String> result = new HashMap<>();
-            result.put("currentPrice", naverClient.getCurrentPrice(stockCode));
+            result.put("currentPrice", price);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -71,58 +79,9 @@ public class StockController {
         }
     }
 
-    /** 시총만 조회 */
-    @GetMapping("/{stockCode}/market-value")
-    public ResponseEntity<Map<String, String>> getMarketValue(@PathVariable String stockCode) {
-        try {
-            Map<String, String> result = new HashMap<>();
-            result.put("marketValue", naverClient.getMarketValue(stockCode));
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Failed to fetch market value: " + e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        }
-    }
+    // market-value / per / pbr 엔드포인트는 비활성(데이터 소스 제거)
 
-    /** PER만 조회 */
-    @GetMapping("/{stockCode}/per")
-    public ResponseEntity<Map<String, String>> getPER(@PathVariable String stockCode) {
-        try {
-            Map<String, String> result = new HashMap<>();
-            result.put("per", naverClient.getPER(stockCode));
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Failed to fetch PER: " + e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        }
-    }
-
-    /** PBR만 조회 */
-    @GetMapping("/{stockCode}/pbr")
-    public ResponseEntity<Map<String, String>> getPBR(@PathVariable String stockCode) {
-        try {
-            Map<String, String> result = new HashMap<>();
-            result.put("pbr", naverClient.getPBR(stockCode));
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Failed to fetch PBR: " + e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        }
-    }
-
-    /** 원본 네이버 데이터 조회 (디버깅용) */
-    @GetMapping("/{stockCode}/raw")
-    public ResponseEntity<JsonNode> getRawData(@PathVariable String stockCode) {
-        try {
-            JsonNode result = naverClient.fetchIntegration(stockCode);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
+    // per/pbr/raw 엔드포인트 제거(네이버 모바일 통합 API 의존성 제거)
 
     /** 일봉 차트 데이터 조회 */
     @GetMapping("/{stockCode}/chart/daily")

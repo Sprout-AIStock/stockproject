@@ -3,14 +3,18 @@ package com.sprout.stockproject.external;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Component
 public class NaverMobileStockClient {
 
     private final WebClient wc;
     private final ObjectMapper om;
+    private final java.util.concurrent.ConcurrentHashMap<String, CacheEntry> cache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long TTL_MILLIS = 5 * 60 * 1000; // 5분 캐시
 
     public NaverMobileStockClient(WebClient.Builder builder, ObjectMapper om) {
         this.wc = builder.baseUrl("https://m.stock.naver.com").build();
@@ -19,16 +23,57 @@ public class NaverMobileStockClient {
 
     /** 종목 통합 정보 (원래 쓰던 /api/stock/{code}/integration) */
     public JsonNode fetchIntegration(String stockCode) {
-        try {
-            String raw = wc.get()
-                    .uri(uri -> uri.path("/api/stock/{code}/integration").build(stockCode))
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-            return om.readTree(raw);
-        } catch (Exception e) {
-            throw new RuntimeException("NaverMobileStockClient.fetchIntegration failed: " + e.getMessage(), e);
+        String lastError = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                String path = "/api/stock/" + stockCode + "/integration";
+                String raw = wc.get()
+                        .uri(path)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1")
+                        .header("Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7")
+                        .header("Referer", "https://m.stock.naver.com/")
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block();
+                if (raw == null || raw.isBlank()) throw new RuntimeException("Empty response body");
+                JsonNode parsed = om.readTree(raw);
+                cache.put(stockCode, new CacheEntry(parsed, System.currentTimeMillis()));
+                return parsed;
+            } catch (WebClientResponseException wce) {
+                lastError = wce.getStatusCode() + " " + wce.getResponseBodyAsString();
+                // 409/429/5xx 재시도
+                int code = wce.getStatusCode().value();
+                if (code == 409 || code == 429 || code >= 500) {
+                    sleepBackoff(attempt);
+                    // 캐시가 있으면 즉시 반환 (소극적 폴백)
+                    CacheEntry ce = cache.get(stockCode);
+                    if (ce != null && !ce.isExpired()) return ce.data();
+                    continue;
+                }
+                throw new RuntimeException("NaverMobileStockClient.fetchIntegration failed: " + wce.getMessage(), wce);
+            } catch (Exception e) {
+                lastError = e.getMessage();
+                sleepBackoff(attempt);
+                CacheEntry ce = cache.get(stockCode);
+                if (ce != null && !ce.isExpired()) return ce.data();
+            }
         }
+        CacheEntry ce = cache.get(stockCode);
+        if (ce != null && !ce.isExpired()) return ce.data();
+        throw new RuntimeException("NaverMobileStockClient.fetchIntegration failed after retries: " + lastError);
+    }
+
+    private void sleepBackoff(int attempt) {
+        try {
+            long[] waits = {0L, 300L, 800L, 1500L};
+            long ms = attempt < waits.length ? waits[attempt] : 1500L;
+            if (ms > 0) Thread.sleep(ms);
+        } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+    }
+
+    private record CacheEntry(JsonNode data, long storedAt) {
+        boolean isExpired() { return System.currentTimeMillis() - storedAt > TTL_MILLIS; }
     }
 
     /** 종목명 추출 */
