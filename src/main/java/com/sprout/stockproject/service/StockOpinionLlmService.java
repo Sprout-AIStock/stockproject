@@ -58,20 +58,20 @@ public class StockOpinionLlmService {
 
             Map<String, Object> req = new HashMap<>();
             req.put("model", model);
-            req.put("input", prompt);
+            req.put("messages", List.of(
+                Map.of("role", "user", "content", prompt)
+            ));
             req.put("temperature", 0);
-            req.put("max_output_tokens", 400);
-            // GPT-5 베스트 프랙티스: 최소 추론 + 간결한 출력
-            req.put("reasoning", Map.of("effort", "minimal"));
-            req.put("text", Map.of("verbosity", "low"));
+            req.put("max_tokens", 400);
             Map<String, Object> respFmt = new HashMap<>();
             respFmt.put("type", "json_schema");
             respFmt.put("json_schema", Map.of("name", "stock_opinion", "schema", responseSchema()));
             req.put("response_format", respFmt);
 
             String raw = webClient.post()
-                    .uri("/responses")
+                    .uri("/chat/completions")
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer " + System.getenv("OPENAI_API_KEY"))
                     .bodyValue(objectMapper.writeValueAsString(req))
                     .exchangeToMono(res -> res.bodyToMono(String.class)
                             .flatMap(body -> res.statusCode().isError()
@@ -108,15 +108,14 @@ public class StockOpinionLlmService {
 
     private String extractOutputJson(String raw) throws Exception {
         JsonNode root = objectMapper.readTree(raw);
-        JsonNode ot = root.get("output_text");
-        if (ot != null && ot.isTextual()) return ot.asText();
-        JsonNode output = root.get("output");
-        if (output != null && output.isArray() && output.size() > 0) {
-            JsonNode first = output.get(0);
-            JsonNode content = first.get("content");
-            if (content != null && content.isArray() && content.size() > 0) {
-                JsonNode maybeText = content.get(0).get("text");
-                if (maybeText != null && maybeText.isTextual()) return maybeText.asText();
+        // Standard chat/completions format
+        JsonNode choices = root.get("choices");
+        if (choices != null && choices.isArray() && choices.size() > 0) {
+            JsonNode choice = choices.get(0);
+            JsonNode message = choice.get("message");
+            if (message != null) {
+                JsonNode content = message.get("content");
+                if (content != null && content.isTextual()) return content.asText();
             }
         }
         return raw;
